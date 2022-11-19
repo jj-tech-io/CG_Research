@@ -68,6 +68,9 @@ class SkinAbsorption:
             # Index of refraction - we assume a constant value of 1.4 as it changes very little through the skin
             NR = 1.4
             CSV_Out = CSV_Out + f"{nm},{SAV_eumelanin_L},{SAV_pheomelanin_L},{baselineSkinAbsorption_L},{epidermis},{scattering_epidermis},{scattering_dermis},{dermis}\n"
+            if(nm == 380):
+                print(f"Absorption at 380nm: {epidermis}")
+                print(scattering_dermis+baselineSkinAbsorption_L+epidermis)
         return CSV_Out
 
 
