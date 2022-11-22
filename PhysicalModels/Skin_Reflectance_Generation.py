@@ -5,21 +5,26 @@ class SkinAbsorption:
 
     def __init__(self):
         print("init SkinAbsorption")
-        HbFile = open("/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/hb.csv", "r")
-        O2HbFile = open("/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/O2Hb.csv", "r")
+        import pandas as pd
+        import numpy as np
+        df = pd.read_csv("/Users/joeljohnson/Documents/Github/CG_Research/Data/hem.txt", sep='\t')
 
-        HbLines = HbFile.readlines()
-        for line in HbLines:
-            splitLine = line.split(",")
-            self.Hb[int(splitLine[0])] = float(splitLine[1].rstrip("\n"))
 
-        O2HbLines = O2HbFile.readlines()
-        for line in O2HbLines:
-            splitLine = line.split(",")
-            self.O2Hb[int(splitLine[0])] = float(splitLine[1].rstrip("\n"))
+        #get data from df where 380<=WL<=780
+        hem = df.loc[(df.iloc[:,0] >= 380) & (df.iloc[:,0] <= 780)]
+        #count by 10
+        hem = hem.iloc[::5]
+        for i in range(0,len(hem)):
+            hem.iloc[i,0] = hem.iloc[i,0].astype(int)
+            hem.iloc[i,1] = hem.iloc[i,1].astype(float)
+            hem.iloc[i,2] = hem.iloc[i,2].astype(float)
             
-        HbFile.close()
-        O2HbFile.close()
+        for i in range(0,len(hem)):
+            wl= hem.iloc[i,0].astype(int)
+            hbo2 = hem.iloc[i,1].astype(float)
+            hb = hem.iloc[i,2].astype(float)
+            self.O2Hb[wl] = hbo2
+            self.Hb[wl] = hb
 
     def Generate(self):
         CSV_Out = "Wavelength,Eumelanin,Pheomelanin,Baseline,Epidermis,ScatteringEpi,ScatteringDerm,Dermis\n"
@@ -37,6 +42,7 @@ class SkinAbsorption:
         CSV_Out_File = open("/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/AbsorptionValues.csv","w+")
         CSV_Out_File.write(CSV_Out)
         CSV_Out_File.close() 
+        print(groupByHemoglobin)
         return groupByBlend
     
     def GetReflectanceValues(self, Cm, Ch, Bm):
