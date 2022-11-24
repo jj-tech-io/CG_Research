@@ -9,12 +9,12 @@ class Abs_Scat:
     def get_alpha_em(wl):
         alpha_em = 6.6 * pow(10,10) * pow(wl,-3.33)
         #mm^-1
-        return alpha_em 
+        return alpha_em*10
     #alpha_pm is the spectral absorption coefficient of pheomelanin,
     def get_alpha_ph(wl):
         alpha_pm = 2.9 * pow(10,14) * pow(wl,-4.75)
         #mm^-1
-        return alpha_pm
+        return alpha_pm*10
     #baseline absorption - used in both layers
     def get_alpha_base(wl):
         # alpha_base = 0.0244 + 8.54 * pow(10,-(wl-154)/66.2)
@@ -47,10 +47,10 @@ class Abs_Scat:
     #scatter_coef is the scattering coefficient of epidermis and dermis layers
     def get_scatter_coef(wl, layer):
         #alpha_s is the spectral scattering coefficient of epidermis and dermis layers
-        alpha_s = 14.74*math.pow(wl,-0.22)+2.22*math.pow(10,11)*math.pow(wl,-4.0)
-        #alpha_s = 1.1*math.pow(10,12)*math.pow(wl,-4.0)+73.7*math.pow(wl,-0.22)
-        # if layer == "dermis":
-        #     alpha_s = 0.5*alpha_s
+        # alpha_s = 14.74*math.pow(wl,-0.22)+2.22*math.pow(10,11)*math.pow(wl,-4.0)
+        alpha_s = 1.1*math.pow(10,12)*math.pow(wl,-4.0)+73.7*math.pow(wl,-0.22)
+        if layer == "dermis":
+            alpha_s = 0.5*alpha_s
         return alpha_s
 
 class SkinAbsorption:
