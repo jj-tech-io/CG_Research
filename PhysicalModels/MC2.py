@@ -2,76 +2,83 @@ import random
 import math
 import numpy as np
 from PIL import Image
-# class Scattering:
-#     def get_us(lam):
-#         #us' = 1.1x10^12*lambda^-4 + 73.7*lambda^-0.22
-#         us = 1.1*math.pow(10,12)*math.pow(lam,-4) + 73.7*math.pow(lam,-0.22)
-#         return us
+import matplotlib.pyplot as plt
+import os
+import json
+import time
+from datetime import datetime
 
-#     def get_ua(lam):
-#         #ua' = 1.1x10^12*lambda^-4 + 73.7*lambda^-0.22
-#         ua = 1.1*math.pow(10,12)*math.pow(lam,-4) + 73.7*math.pow(lam,-0.22)
-#         return ua
-#     def get_g(lam):
-#         #g' = 1.1x10^12*lambda^-4 + 73.7*lambda^-0.22
-#         g = 1.1*math.pow(10,12)*math.pow(lam,-4) + 73.7*math.pow(lam,-0.22)
-#         return g
+class Abs_Scat():
 
-#     def get_dermis(lam):
-#         g = 0.715 + 3.8 * math.pow(10,-4)*(1-np.exp(-(lam-542)/1129))
-#         us = 1.752*math.pow(10,8)*math.pow(lam,-2.33)+134.67*math.pow(lam,-0.494)
-#         return g, us
-#     def get_epidermis(lam):
-#         g = 0.745+0.546*(1-np.exp(-(lam-500)/1806))
-#         us = 1.752*math.pow(10,8)*math.pow(lam,-2.33)+134.67*math.pow(lam,-0.494)
-#         usp = 1.1752*math.pow(10,3)*math.pow(lam,-2.33)+134.67*math.pow(lam,-0.494)
-#         return g, us
-class Abs_Scat:
+
+    def __init__(self):
+        print("init Abs_Scat()")
+        self.scaleAlphaEm = 10
+        self.scaleAlphaPh = 10
+        self.scaleAlphaBase = 1
+        self.scaleAlphaEpi = 1
+        self.scaleAlphaDerm = 1
+        self.scaleAlphaOxy = 100
+        self.scaleAlphaDeoxy = 10
+        self.scaleScattering = 10
+        self.params = f"""
+        scaleAlphaEm={self.scaleAlphaEm}, scaleAlphaPh={self.scaleAlphaPh}
+        scaleAlphaBase={self.scaleAlphaBase}
+        scaleAlphaEpi={self.scaleAlphaEpi}, scaleAlphaDerm={self.scaleAlphaDerm}
+        scaleAlphaOxy={self.scaleAlphaOxy}, scaleAlphaDeoxy={self.scaleAlphaDeoxy}
+        scaleAlphaS={self.scaleScattering}
+        """
+        print(self.params)
+    def get_params(self):
+        return self.params
 
     #alpha_em is the spectral absorption coefficient of eumelanin,
-    def get_alpha_em(wl):
+    def get_alpha_em(self,wl):
         alpha_em = 6.6 * pow(10,10) * pow(wl,-3.33)
         #mm^-1
-        return alpha_em 
+        return alpha_em*self.scaleAlphaEm
     #alpha_pm is the spectral absorption coefficient of pheomelanin,
-    def get_alpha_ph(wl):
+    def get_alpha_ph(self,wl):
         alpha_pm = 2.9 * pow(10,14) * pow(wl,-4.75)
         #mm^-1
-        return alpha_pm
+        return alpha_pm*self.scaleAlphaPh
     #baseline absorption - used in both layers
-    def get_alpha_base(wl):
-        alpha_base = 0.0244 + 8.54 * pow(10,-(wl-154)/66.2)
-        return alpha_base
+    def get_alpha_base(self,wl):
+        # alpha_base = 0.0244 + 8.54 * pow(10,-(wl-154)/66.2)
+        alpha_base = 0.0244 + 8.53*np.exp(-(wl-154)/66.2)
+        return alpha_base*self.scaleAlphaBase
     #get_alpha_epi_total is the total absorption coefficient of epidermis
-    def get_alpha_epi_total(wl, Cm, Bm):
-        alpha_em = Abs_Scat.get_alpha_em(wl)
-        alpha_pm = Abs_Scat.get_alpha_ph(wl)
-        alpha_base = Abs_Scat.get_alpha_base(wl)
-        alpha_total = Cm*(Bm*alpha_em + (1-Bm)*alpha_pm) + (1-Cm)*alpha_base
+    def get_alpha_epi_total(self,wl, Cm, Bm, Ch):
+        alpha_em = self.get_alpha_em(wl)
+        alpha_pm = self.get_alpha_ph(wl)
+        alpha_base = self.get_alpha_base(wl)
+        # alpha_epi_total = Cm*(Bm*alpha_em + (1-Bm)*alpha_pm) + (1-Cm)*alpha_base
+        alpha_epi_total = Cm * alpha_em + Ch * alpha_pm + (1-Cm)*self.get_alpha_base(wl)
         #mm^-1
-        return alpha_total
+        return alpha_epi_total*self.scaleAlphaEpi
     #get_alpha_derm_total is the total absorption coefficient of dermis
-    def get_alpha_derm_total(wl, Ch, Bm):
+    def get_alpha_derm_total(self,wl, Ch, Bm):
         """
         gamma  deoxy hemoglobin : oxy hemoglobin ratio
         typical 0.6−0.8 [ZBK01]. In
-        our model we fix g to be 0.75
+        our model we fix gamma to be 0.75
         """
         nm = wl
-        gamma = 0.75
+        gamma =0.75
         # Second layer absorption - Dermis
-        alpha_oxy = SkinAbsorption.O2Hb[int(nm)]
-        alpha_deoxy = SkinAbsorption.Hb[int(nm)]
-        alpha_derm_total = Ch*(gamma*alpha_oxy + (1-gamma)*alpha_deoxy) + (1-Ch)*Abs_Scat.get_alpha_base(wl)
-        return alpha_derm_total
+        alpha_oxy = SkinAbsorption.O2Hb[int(nm)]*self.scaleAlphaOxy
+        alpha_deoxy = SkinAbsorption.Hb[int(nm)]*self.scaleAlphaOxy
+        alpha_derm_total = Ch*(gamma*alpha_oxy + (1-gamma)*alpha_deoxy) + (1-Ch)*self.get_alpha_base(wl)
+        return alpha_derm_total*self.scaleAlphaDerm
 
     #scatter_coef is the scattering coefficient of epidermis and dermis layers
-    def get_scatter_coef(wl, layer):
-        #alpha_s is the spectral scattering coefficient of epidermis and dermis layers
-        alpha_s = 14.74*math.pow(wl,-0.22)+2.22*math.pow(10,11)*math.pow(wl,-4.0)
+    def get_scatter_coef(self,wl, layer):
+        #scattering is the spectral scattering coefficient of epidermis and dermis layers
+        # scattering = 14.74*math.pow(wl,-0.22)+2.22*math.pow(10,11)*math.pow(wl,-4.0)
+        scattering = 1.1*math.pow(10,12)*math.pow(wl,-4.0)+73.7*math.pow(wl,-0.22)
         if layer == "dermis":
-            alpha_s = 0.5*alpha_s
-        return alpha_s
+            scattering = 0.75*scattering
+        return scattering*self.scaleScattering
 
 class SkinAbsorption:
 
@@ -79,7 +86,9 @@ class SkinAbsorption:
     Hb = {}
     CIE_XYZ_Spectral_Sensitivity_Curve = {}
     step_sizes = []
+    
     def __init__(self):
+        self.abs = Abs_Scat()
         cmf = open("/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/cie-cmf.csv", "r") 
         contents = cmf.readlines()
         CIE_CMF = [None] * 42
@@ -96,12 +105,12 @@ class SkinAbsorption:
         HbLines = HbFile.readlines()
         for line in HbLines:
             splitLine = line.split(",")
-            self.Hb[int(splitLine[0])] = float(splitLine[1].rstrip("\n"))*10
+            self.Hb[int(splitLine[0])] = float(splitLine[1].rstrip("\n"))
 
         O2HbLines = O2HbFile.readlines()
         for line in O2HbLines:
             splitLine = line.split(",")
-            self.O2Hb[int(splitLine[0])] = float(splitLine[1].rstrip("\n"))*10
+            self.O2Hb[int(splitLine[0])] = float(splitLine[1].rstrip("\n"))
             
         HbFile.close()
         O2HbFile.close()
@@ -165,7 +174,8 @@ class SkinAbsorption:
 
         img = Image.new('RGB', (21,5), color = 'black')
         pixels = img.load()
-        img.save('skin_LUT.png')
+        
+        img.save('/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/skin_LUT.png')
         pixel_index = 0
         for m in range(7):
             for x in range(3): # 0 - 32
@@ -174,44 +184,45 @@ class SkinAbsorption:
                     yCoord = y
                     pixels[xCoord, yCoord] = pixelsRGB[pixel_index]
                     pixel_index = pixel_index + 1
-        img.save('/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/skin_LUT.png')
+                    
+        img.save('/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/skin_LUT.png')
         return pixelsRGB
             
     def GetReflectanceValues(self, Cm, Ch, Bm):
         CSV_Out = ""
         wavelengths = range(380,780,10)
         reflectances = []
-
+        
         for nm in wavelengths:
             
             # First layer absorption - Epidermis
-            SAV_eumelanin_L = 6.6 * pow(10,10) * pow(nm,-3.33)
-            SAV_pheomelanin_L = 2.9 * pow(10,14) * pow(nm,-4.75)
-            epidermal_hemoglobin_fraction = Ch * 0.25
+            # SAV_eumelanin_L = 6.6 * pow(10,10) * pow(nm,-3.33)
+            # SAV_pheomelanin_L = 2.9 * pow(10,14) * pow(nm,-4.75)
+            # epidermal_hemoglobin_fraction = Ch * 0.25
 
             # baseline - used in both layers
             # baselineSkinAbsorption_L = 0.0244 + 8.54 * pow(10,-(nm-220)/123)
-            baselineSkinAbsorption_L = Abs_Scat.get_alpha_base(nm)
+            baselineSkinAbsorption_L = self.abs.get_alpha_base(nm)
             # Epidermis Absorption Coefficient:          
             # epidermis = Cm * ((Bm * SAV_eumelanin_L) +((1 -  Bm ) * SAV_pheomelanin_L)) + ((1 - epidermal_hemoglobin_fraction) * baselineSkinAbsorption_L)
             #correction
-            epidermis = Abs_Scat.get_alpha_epi_total(nm,Cm,Bm)
+            epidermis = self.abs.get_alpha_epi_total(nm,Cm,Bm,Ch)
 
             # Second layer absorption - Dermis
             # gammaOxy = self.O2Hb[int(nm)]
             # gammaDeoxy = self.Hb[int(nm)]
             # A = 0.75 * gammaOxy + (1 - 0.75) * gammaDeoxy      
             # dermis = Ch * (A + (( 1 - Ch) * baselineSkinAbsorption_L))
-            dermis = Abs_Scat.get_alpha_derm_total(nm,Ch,Bm)
+            dermis = self.abs.get_alpha_derm_total(nm,Ch,Bm)
            
             # Scattering coefficients
             # scattering_epidermis = pow(14.74 * nm, -0.22) + 2.2 * pow(10,11) * pow(nm, -4)
-            scattering_epidermis = Abs_Scat.get_scatter_coef(nm,layer="epidermis")
+            scattering_epidermis = self.abs.get_scatter_coef(nm,layer="epidermis")
             
             # scattering_dermis = scattering_epidermis * 0.5
-            scattering_dermis = Abs_Scat.get_scatter_coef(nm,layer="dermis")
+            scattering_dermis = self.abs.get_scatter_coef(nm,layer="dermis")
             reflectance = self.MonteCarlo(epidermis, scattering_epidermis, dermis, scattering_dermis, nm)
-            print(f"Done on {nm} >> ({Cm}, {Ch}, {Bm}) = {reflectance}")
+            # print(f"Done on {nm} >> ({Cm}, {Ch}, {Bm}) = {reflectance}")
             
 
             reflectances.append((reflectance,Cm,Ch,Bm,nm,epidermis,dermis,baselineSkinAbsorption_L))
@@ -230,10 +241,24 @@ class SkinAbsorption:
         COS90D = 1 * pow(10,-6)
         ONE_MINUS_COSZERO = 1 * pow(10,-12)
         COSZERO = 1.0 - 1.0e-12     # cosine of about 1e-6 rad
-        g = 0.9
+        g = 0.90
         nt = 1.33 # Index of refraction
         epidermis_thickness = 0.25
-
+        # These are our Monte Carlo Light Transport Variables that don't change
+        # Nbins = 100
+        # Nbinsp1 = 101
+        # PI = 3.1415926
+        # LIGHTSPEED = math.pow(2.997925,10)
+        # ALIVE = 1
+        # DEAD = 0
+        # THRESHOLD = 0.01
+        # CHANCE = 0.1
+        # COS90D = math.pow(1,-6)
+        # ONE_MINUS_COSZERO = math.pow(1,-12)
+        # COSZERO = 1.0 - 1.0e-12     # cosine of about 1e-6 rad
+        # g = 0.9
+        # nt = 1.4 # Index of refraction
+        # epidermis_thickness = 0.25
         x = 0.0
         y = 0.0
         z = 0.0 # photon position
@@ -259,7 +284,7 @@ class SkinAbsorption:
         ReflBin = [None] * Nbinsp1 #bin to store weights of escaped photos for reflectivity
         epi_albedo = epi_mus/(epi_mus + epi_mua) # albedo of tissue
         derm_albedo = derm_mus/(derm_mus + derm_mua) # albedo of tissue
-        Nphotons = 1000 # number of photons in simulation 
+        Nphotons = 100 # number of photons in simulation 
         NR = Nbins # number of radial positions 
         radial_size = 2.5 # maximum radial size 
         r = 0.0 # radial position 
@@ -299,7 +324,7 @@ class SkinAbsorption:
             # Propagate one photon until it dies as determined by ROULETTE.
             # or if it reaches the surface again
             it = 0
-            max_iterations = 100000 # to help avoid infinite loops in case we do something wrong
+            max_iterations = 100 # to help avoid infinite loops in case we do something wrong
 
             # we'll hit epidermis first, so set mua/mus to those scattering/absorption values
             mua = epi_mua
@@ -450,6 +475,43 @@ class SkinAbsorption:
         else:
             return 0 
 
-skinAbsorption = SkinAbsorption()
-reflectanceValues = skinAbsorption.Generate()
 
+
+if __name__ == "__main__":
+    # abs = Abs_Scat(scaleAlphaEm=10,scaleAlphaPh=10,scaleAlphaOxy=10,scaleAlphaDeoxy=10,scaleScattering=10)
+    #get date and time 
+
+    now = datetime.now()
+    date_time = now.strftime("%m-%d-%Y_%H-%M-%S").replace(" ", "_").replace(":", "_").replace("/", "_")
+
+    print(date_time)
+    start = time.time()
+    print("Starting"+str(start))
+    skinAbsorption = SkinAbsorption()
+    title = skinAbsorption.abs.get_params()
+    reflectanceValues = skinAbsorption.Generate()
+    finish = time.time()
+
+    print("Finished"+str(finish))
+    print("Time taken: " + str(finish - start))
+    #load image to np array
+    im = Image.open("/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/skin_LUT.png")
+    im = np.array(im)
+    #create 3 pictures from the image
+    im1 = im[:,0:7,:]
+    im2 = im[:,7:14,:]
+    im3 = im[:,14:21,:]
+    im1 = Image.fromarray(im1)
+    im1 = im1.resize((64,48), Image.Resampling.LANCZOS)
+    im1 = np.array(im1)
+    plt.imshow(im1,extent=[0,0.5,0.32,0])
+    plt.title(f"image1_{title}",fontsize=8)
+    plt.ylabel("hemoglobin Chb",fontsize=8)
+    plt.xlabel("melanin Cm",fontsize=8)
+    plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
+    plt.tick_params(axis='both', which='major', labelsize=8)
+    #save fig
+    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image1_{date_time}.png")
+
+
+    
