@@ -3,6 +3,8 @@ import math
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
+plt.style.use('seaborn-poster')
+# plt.style.use('ggplot')
 import os
 import json
 import time
@@ -10,24 +12,27 @@ from datetime import datetime
 
 class Abs_Scat():
 
-    def __init__(self):
+    def __init__(self, comment = ""):
+        
         print("init Abs_Scat()")
-        self.scaleAlphaEm = 10
-        self.scaleAlphaPh = 10
-        self.scaleAlphaBase = 1
-        self.scaleAlphaEpi = 1
-        self.scaleAlphaDerm = 1
-        self.scaleAlphaOxy = 1
-        self.scaleAlphaDeoxy = 1
-        self.scaleScattering = 1
+        comment = """
+        Photon Weight = 1.0*solarSpectrum[wavelength]
+        Bm = 0.61
+        """.strip("\n")   
+        self.scaleAlphaEm = 1.0
+        self.scaleAlphaPh = 1.0
+        self.scaleAlphaBase = 1.0
+        self.scaleAlphaEpi = 1.0
+        self.scaleAlphaDerm = .1
+        self.scaleAlphaOxy = 1.0
+        self.scaleAlphaDeoxy = 1.0
+        self.scaleScattering = 1.0
         self.params = f"""
-        scaleAlphaEm={self.scaleAlphaEm}, scaleAlphaPh={self.scaleAlphaPh}
-        scaleAlphaBase={self.scaleAlphaBase}
-        scaleAlphaEpi={self.scaleAlphaEpi}, scaleAlphaDerm={self.scaleAlphaDerm}
-        scaleAlphaOxy={self.scaleAlphaOxy}, scaleAlphaDeoxy={self.scaleAlphaDeoxy}
-        scaleScattering={self.scaleScattering}
-        """
-        print(self.params)
+        scaleAlphaEm={self.scaleAlphaEm}, scaleAlphaPh={self.scaleAlphaPh}, scaleAlphaEpi={self.scaleAlphaEpi},scaleAlphaBase={self.scaleAlphaBase}
+        scaleAlphaOxy={self.scaleAlphaOxy}, scaleAlphaDeoxy={self.scaleAlphaDeoxy}, scaleAlphaDerm={self.scaleAlphaDerm}, scaleScattering={self.scaleScattering}
+        {comment}"""
+
+
     def get_params(self):
         return self.params
 
@@ -36,7 +41,6 @@ class Abs_Scat():
         alpha_em = 6.6 * pow(10,10) * pow(wl,-3.33)
         #mm^-1
         #convert to cm^-1
-
         return alpha_em*self.scaleAlphaEm
 
     #alpha_pm is the spectral absorption coefficient of pheomelanin,
@@ -53,12 +57,11 @@ class Abs_Scat():
 
     #get_alpha_epi_total is the total absorption coefficient of epidermis
     def get_alpha_epi_total(self,wl, Cm, Bm, Ch):
-      
         alpha_em = self.get_alpha_em(wl)
         alpha_pm = self.get_alpha_ph(wl)
         alpha_base = self.get_alpha_base(wl)
-        #alpha_epi_total = Cm*(Bm*alpha_em + (1-Bm)*alpha_pm) + (1-Cm)*alpha_base
-        alpha_epi_total = Cm * alpha_em + Ch * alpha_pm + (1-Cm)*self.get_alpha_base(wl)
+        alpha_epi_total = Cm*(Bm*alpha_em + (1-Bm)*alpha_pm) + (1-Cm)*alpha_base
+        #alpha_epi_total = Cm * alpha_em + Ch * alpha_pm + (1-Cm)*self.get_alpha_base(wl)
         #mm^-1
         return alpha_epi_total*self.scaleAlphaEpi
 
@@ -81,8 +84,8 @@ class Abs_Scat():
 
     #scatter_coef is the scattering coefficient of epidermis and dermis layers
     def get_scatter_coef(self,wl, layer):
-        # scattering = 14.74*math.pow(wl,-0.22)+2.22*math.pow(10,11)*math.pow(wl,-4.0)
-        scattering = 1.1*math.pow(10,12)*math.pow(wl,-4.0)+73.7*math.pow(wl,-0.22)
+        scattering = 14.74*math.pow(wl,-0.22)+2.22*math.pow(10,11)*math.pow(wl,-4.0)
+        #scattering = 1.1*math.pow(10,12)*math.pow(wl,-4.0)+73.7*math.pow(wl,-0.22)
         if layer == "dermis":
             scattering = 0.5*scattering
         return scattering*self.scaleScattering
@@ -95,6 +98,17 @@ class SkinAbsorption:
     step_sizes = []
     
     def __init__(self):
+        #load csv to dictionary
+        import csv
+        solarSpectrum = {}
+        with open('/Users/joeljohnson/Documents/Python/solarSpectrum.csv', 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if row[0] != 'wl':
+                    solarSpectrum[float(row[0])] = float(row[1])
+            f.close()
+        self.solarSpectrum = solarSpectrum
+
         self.abs = Abs_Scat()
         cmf = open("/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/cie-cmf.csv", "r") 
         contents = cmf.readlines()
@@ -140,46 +154,45 @@ class SkinAbsorption:
         return sRGB
 
     def Generate(self):
-        CSV_Out = "Wavelength,Cm, Ch, Bm,Eumelanin,Pheomelanin,Baseline,Epidermis,ScatteringEpi,ScatteringDerm,Dermis,Reflectance\n"
-        groupByBlend = []
-        for Bm in [0.01,0.5,0.99]:
-            groupByMelanin = []
-            for Cm in [0.002,0.0135,0.0425,0.1,0.185,0.32,0.5]:
-                groupByHemoglobin = []
-                for Ch in [0.003,0.02,0.07,0.16,0.32]:
-                    values = self.GetReflectanceValues( Cm, Ch, Bm )
-                    CSV_Out = CSV_Out + str(values)
-                    groupByHemoglobin.append(values)
-                groupByMelanin.append(groupByHemoglobin)
-            groupByBlend.append(groupByMelanin)
-            
+        CSV_Out = "Wavelength,Cm,Ch,Bm,Eumelanin,Pheomelanin,Baseline,Epidermis,ScatteringEpi,ScatteringDerm,Dermis,Reflectance\n"
         CSV_Out_File = open("/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/AbsorbtionValues.csv","w+")
         CSV_Out_File.write(CSV_Out)
+        groupByBlend = []
+        Bm = 0.61
+        # for Bm in [0.01,0.5,0.99]:
+        groupByMelanin = []
+        for Cm in [0.002,0.0135,0.0425,0.1,0.185,0.32,0.5]:
+            groupByHemoglobin = []
+            for Ch in [0.003,0.02,0.07,0.16,0.32]:
+                CSV_Out,values = self.GetReflectanceValues( Cm, Ch, Bm )
+                groupByHemoglobin.append(values)
+                
+                CSV_Out_File.write(CSV_Out)
+                
+            groupByMelanin.append(groupByHemoglobin)
+            groupByBlend.append(groupByMelanin)
+        
         CSV_Out_File.close()
         XYZ_Colors = []
         spec = []
+        
         for melanin_blend in groupByBlend: # Mb
+            # print("Melanin Blend"+str(melanin_blend))
             for melanin_fraction in melanin_blend:
                 for hemoglobin_fraction in melanin_fraction: # Mf
                     total = (0,0,0)
                     spec = [0.0] * 41
-                    for data in hemoglobin_fraction: # Hf
-                        
-                        print(data)
-                            
+                    for data in hemoglobin_fraction: # Hf                            
                         reflectance = data[0]
-
                         spec[int((data[4] -380) / 10)] = data[0]
-
                         xyz = self.CIE_XYZ_Spectral_Sensitivity_Curve.get(data[4])
                         x = xyz[0] * reflectance
                         y = xyz[1] * reflectance
                         z = xyz[2] * reflectance
-                        total = (total[0] + x, total[1] + y, total[2] + z)
-
+                        total = (total[0] + x, total[1] + y, total[2] + z)                     
                     XYZ_Colors.append(total)
-
         pixelsRGB = []
+
         for xyz in XYZ_Colors:
             pixelsRGB.append(self.XYZ_to_sRGB(xyz))
 
@@ -223,8 +236,8 @@ class SkinAbsorption:
 
             reflectances.append((reflectance,Cm,Ch,Bm,nm,epidermis,dermis,baselineSkinAbsorption_L))
 
-            # CSV_Out = CSV_Out + f"{nm},{Cm},{Ch},{Bm},{SAV_eumelanin_L},{SAV_pheomelanin_L},{baselineSkinAbsorption_L},{epidermis},{scattering_epidermis},{scattering_dermis},{dermis},{reflectance}\n"
-        return reflectances
+            CSV_Out = f"{nm},{Cm},{Ch},{Bm},{SAV_eumelanin_L},{SAV_pheomelanin_L},{baselineSkinAbsorption_L},{epidermis},{scattering_epidermis},{scattering_dermis},{dermis},{reflectance}\n"
+        return CSV_Out, reflectances
         
 
     def MonteCarlo (self, epi_mua, epi_mus, derm_mua, derm_mus, nm):
@@ -290,7 +303,7 @@ class SkinAbsorption:
         while True:
             i_photon = i_photon + 1
 
-            W = 1.0
+            W = 1.0*self.solarSpectrum[nm]
             photon_status = ALIVE
 
             x= 0
@@ -422,10 +435,11 @@ class SkinAbsorption:
             total_reflection = total_reflection + ReflBin[each]/Nphotons
         return total_reflection
 
+  
     def RFresnel(self, n1, n2, cosT1):
         r = 0.0
         cosT2 = 0.0
-        COSZERO = 1.0 - 1.0e-12
+        COSZERO = 1.0 - 1.0e-12 
         COS90D = 1 * pow(10,-6)
         if n1 == n2: #matched boundary
             r = 0.0
@@ -459,25 +473,32 @@ class SkinAbsorption:
         else:
             return 0 
 
-
-
 if __name__ == "__main__":
     # abs = Abs_Scat(scaleAlphaEm=10,scaleAlphaPh=10,scaleAlphaOxy=10,scaleAlphaDeoxy=10,scaleScattering=10)
     #get date and time 
+        #tick marks adjusted to match the image
+    Ch = np.array([0.003,0.02,0.07,0.16,0.32]) #y axis
+    #reverse the array
+    Ch = Ch[::-1]
+    Cm = np.array( [0.002,0.0135,0.0425,0.1,0.185,0.32,0.5]) #x axis
+    xCm = np.linspace(0,0.5,len(Cm))
+    xCh = np.linspace(0.32,0,len(Ch))
+    plt.xticks(xCm,Cm)
+    plt.yticks(xCh,Ch)
 
-    now = datetime.now()
-    date_time = now.strftime("%m-%d-%Y_%H-%M-%S").replace(" ", "_").replace(":", "_").replace("/", "_")
-
+    start = datetime.now()
+    date_time = start.strftime("%m-%d-%Y_%H-%M-%S")
+    date_time = date_time.replace(" ", "_").replace(":", "_").replace("/", "_")
    
-    print(date_time)
-    start = time.time()
-    print("Starting"+str(start))
+
+    start_time = date_time
+    print("Starting"+str(start_time))
     skinAbsorption = SkinAbsorption()
     title = skinAbsorption.abs.get_params()
     reflectanceValues = skinAbsorption.Generate()
-    finish = time.time()
-
-    print("Finished"+str(finish))
+    finish = datetime.now()
+    finish_time = finish.strftime("%m-%d-%Y_%H-%M-%S").replace(" ", "_").replace(":", "_").replace("/", "_")
+    print("Finished"+str(finish_time))
     print("Time taken: " + str(finish - start))
     #load image to np array
     im = Image.open(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/skin_LUT{date_time}.png")
@@ -494,10 +515,12 @@ if __name__ == "__main__":
     plt.title(f"image1_{title}",fontsize=8)
     plt.ylabel("hemoglobin Chb",fontsize=8)
     plt.xlabel("melanin Cm",fontsize=8)
-    plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
+
     plt.tick_params(axis='both', which='major', labelsize=8)
+    #make figure bigger
+
     #save fig
-    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image1_{date_time}.png",dpi=72)
+    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image1_{date_time}.png",dpi=72, pad_inches=1.5)
 
     im2 = Image.fromarray(im2)
     im2 = im2.resize((64,46), Image.Resampling.LANCZOS)
@@ -506,7 +529,6 @@ if __name__ == "__main__":
     plt.title(f"image2_{title}",fontsize=8)
     plt.ylabel("hemoglobin Chb",fontsize=8)
     plt.xlabel("melanin Cm",fontsize=8)
-    plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
     plt.tick_params(axis='both', which='major', labelsize=8)
     #save fig
     plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image2_{date_time}.png",dpi=72)
@@ -514,12 +536,11 @@ if __name__ == "__main__":
     im3 = Image.fromarray(im3)
     im3 = im3.resize((64,46), Image.Resampling.LANCZOS)
     im3 = np.array(im3)
-    plt.imshow(im3,extent=[0,0.5,0.32,0])
+    plt.imshow(im3,extent=[0.003,0.5,0.32,0])
     plt.title(f"image3_{title}",fontsize=8)
     plt.ylabel("hemoglobin Chb",fontsize=8)
     plt.xlabel("melanin Cm",fontsize=8)
-    plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
-    plt.tick_params(axis='both', which='major', labelsize=8)
+
     #save fig
     plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image3_{date_time}.png",dpi=72)
 

@@ -184,9 +184,9 @@ class SkinAbsorption:
             CSV_Out = CSV_Out +str(vals)+",\n" 
 
 
-        print("------------< CSV_OUT >-------------")
-        print(CSV_Out)
-        print("------------< CSV_OUT />-------------")
+        # print("------------< CSV_OUT >-------------")
+        # print(CSV_Out)
+        # print("------------< CSV_OUT />-------------")
         CSV_Out_File = open("/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/AbsorbtionValues.csv","w+")
         CSV_Out_File.write(CSV_Out)
         CSV_Out_File.close()
