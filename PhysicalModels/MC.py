@@ -3,7 +3,9 @@ import math
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
+from matplotlib import rc
 plt.style.use('seaborn-poster')
+
 # plt.style.use('ggplot')
 import os
 import json
@@ -16,9 +18,10 @@ class Abs_Scat():
         
         print("init Abs_Scat()")
         comment = """
-        Photon Weight = 1.0*solarSpectrum[wavelength]
-        Bm = 0.61
+        Melanin Blend: Bm = 0.61
+        Photon Starting Weight = 1.0
         """.strip("\n")   
+        #Photon Starting Weight = 1.0*solarSpectrum[wavelength]
         self.scaleAlphaEm = 1.0
         self.scaleAlphaPh = 1.0
         self.scaleAlphaBase = 1.0
@@ -28,9 +31,10 @@ class Abs_Scat():
         self.scaleAlphaDeoxy = 1.0
         self.scaleScattering = 1.0
         self.params = f"""
+        {comment}
         scaleAlphaEm={self.scaleAlphaEm}, scaleAlphaPh={self.scaleAlphaPh}, scaleAlphaEpi={self.scaleAlphaEpi},scaleAlphaBase={self.scaleAlphaBase}
         scaleAlphaOxy={self.scaleAlphaOxy}, scaleAlphaDeoxy={self.scaleAlphaDeoxy}, scaleAlphaDerm={self.scaleAlphaDerm}, scaleScattering={self.scaleScattering}
-        {comment}"""
+        """
 
 
     def get_params(self):
@@ -101,7 +105,7 @@ class SkinAbsorption:
         #load csv to dictionary
         import csv
         solarSpectrum = {}
-        with open('/Users/joeljohnson/Documents/Python/solarSpectrum.csv', 'r') as f:
+        with open('/Users/joeljohnson/Documents/Python/Python/solarSpectrum.csv', 'r') as f:
             reader = csv.reader(f)
             for row in reader:
                 if row[0] != 'wl':
@@ -214,7 +218,7 @@ class SkinAbsorption:
             
     def GetReflectanceValues(self, Cm, Ch, Bm):
         CSV_Out = ""
-        wavelengths = range(380,780,10)
+        wavelengths = range(380,790,10)
         reflectances = []
         
         for nm in wavelengths:
@@ -303,10 +307,11 @@ class SkinAbsorption:
         while True:
             i_photon = i_photon + 1
 
-            W = 1.0*self.solarSpectrum[nm]
+            # W = 1.0*self.solarSpectrum[nm]
+            W = 1.0
             photon_status = ALIVE
 
-            x= 0
+            x = 0
             y = 0
             z = 0
 
@@ -512,34 +517,38 @@ if __name__ == "__main__":
     
     im1 = np.array(im1)
     plt.imshow(im1,extent=[0,0.5,0.32,0])
-    plt.title(f"image1_{title}",fontsize=8)
+    plt.title(f"Monte Carlo LUT",fontsize=8)
+    #put description below the image
     plt.ylabel("hemoglobin Chb",fontsize=8)
-    plt.xlabel("melanin Cm",fontsize=8)
+    plt.xlabel(f"""melanin Cm
+        {title}""",fontsize=8)
 
     plt.tick_params(axis='both', which='major', labelsize=8)
     #make figure bigger
 
     #save fig
-    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image1_{date_time}.png",dpi=72, pad_inches=1.5)
-
+    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image1_{date_time}.png",dpi=72, bbox_inches="tight")
+    plt.clf()
     im2 = Image.fromarray(im2)
     im2 = im2.resize((64,46), Image.Resampling.LANCZOS)
     im2 = np.array(im2)
     plt.imshow(im2,extent=[0,0.5,0.32,0])
-    plt.title(f"image2_{title}",fontsize=8)
+    plt.title(f"Monte Carlo LUT 2",fontsize=8)
     plt.ylabel("hemoglobin Chb",fontsize=8)
-    plt.xlabel("melanin Cm",fontsize=8)
+    plt.xlabel(f"""melanin Cm
+        {title}""",fontsize=8)
     plt.tick_params(axis='both', which='major', labelsize=8)
     #save fig
-    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image2_{date_time}.png",dpi=72)
-    
+    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image2_{date_time}.png",dpi=72,bbox_inches="tight")
+
     im3 = Image.fromarray(im3)
     im3 = im3.resize((64,46), Image.Resampling.LANCZOS)
     im3 = np.array(im3)
     plt.imshow(im3,extent=[0.003,0.5,0.32,0])
-    plt.title(f"image3_{title}",fontsize=8)
+    plt.title(f"Monte Carlo LUT 3",fontsize=8)
     plt.ylabel("hemoglobin Chb",fontsize=8)
-    plt.xlabel("melanin Cm",fontsize=8)
+    plt.xlabel(f"""melanin Cm
+        {title}""",fontsize=8)
 
     #save fig
     plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image3_{date_time}.png",dpi=72)
