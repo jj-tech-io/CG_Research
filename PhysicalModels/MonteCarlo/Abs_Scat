@@ -1,0 +1,81 @@
+class Abs_Scat():
+
+    def __init__(self, comment = ""):
+        
+        print("init Abs_Scat()")
+        comment = """
+        Melanin Blend: Bm = 0.61
+        Photon Starting Weight = 1.0
+        """.strip("\n")   
+        #Photon Starting Weight = 1.0*solarSpectrum[wavelength]
+        self.scaleAlphaEm = 1.0
+        self.scaleAlphaPh = 1.0
+        self.scaleAlphaBase = 1.0
+        self.scaleAlphaEpi = 1.0
+        self.scaleAlphaDerm = .1
+        self.scaleAlphaOxy = 1.0
+        self.scaleAlphaDeoxy = 1.0
+        self.scaleScattering = 1.0
+        self.params = f"""
+        {comment}
+        scaleAlphaEm={self.scaleAlphaEm}, scaleAlphaPh={self.scaleAlphaPh}, scaleAlphaEpi={self.scaleAlphaEpi},scaleAlphaBase={self.scaleAlphaBase}
+        scaleAlphaOxy={self.scaleAlphaOxy}, scaleAlphaDeoxy={self.scaleAlphaDeoxy}, scaleAlphaDerm={self.scaleAlphaDerm}, scaleScattering={self.scaleScattering}
+        """
+
+
+    def get_params(self):
+        return self.params
+
+    #alpha_em is the spectral absorption coefficient of eumelanin,
+    def get_alpha_em(self,wl):
+        alpha_em = 6.6 * pow(10,10) * pow(wl,-3.33)
+        #mm^-1
+        #convert to cm^-1
+        return alpha_em*self.scaleAlphaEm
+
+    #alpha_pm is the spectral absorption coefficient of pheomelanin,
+    def get_alpha_ph(self,wl):
+        alpha_pm = 2.9 * pow(10,14) * pow(wl,-4.75)
+        #mm^-1
+        return alpha_pm*self.scaleAlphaPh
+
+    #baseline absorption - used in both layers
+    def get_alpha_base(self,wl):
+        # alpha_base = 0.0244 + 8.54 * pow(10,-(wl-154)/66.2)
+        alpha_base = 0.0244 + 8.53*np.exp(-(wl-154)/66.2)
+        return alpha_base*self.scaleAlphaBase
+
+    #get_alpha_epi_total is the total absorption coefficient of epidermis
+    def get_alpha_epi_total(self,wl, Cm, Bm, Ch):
+        alpha_em = self.get_alpha_em(wl)
+        alpha_pm = self.get_alpha_ph(wl)
+        alpha_base = self.get_alpha_base(wl)
+        alpha_epi_total = Cm*(Bm*alpha_em + (1-Bm)*alpha_pm) + (1-Cm)*alpha_base
+        #alpha_epi_total = Cm * alpha_em + Ch * alpha_pm + (1-Cm)*self.get_alpha_base(wl)
+        #mm^-1
+        return alpha_epi_total*self.scaleAlphaEpi
+
+    #get_alpha_derm_total is the total absorption coefficient of dermis
+    def get_alpha_derm_total(self,wl, Ch, Bm):
+        """
+        gamma  deoxy hemoglobin : oxy hemoglobin ratio
+        typical 0.6−0.8 [ZBK01]. In
+        our model we fix gamma to be 0.75
+        """
+        nm = wl
+        gamma =0.75
+        # Second layer absorption - Dermis
+        alpha_oxy = SkinAbsorption.O2Hb[int(nm)]*self.scaleAlphaOxy
+        alpha_deoxy = SkinAbsorption.Hb[int(nm)]*self.scaleAlphaOxy
+        # A = 0.75 * alpha_oxy + (1 - 0.75) * alpha_deoxy      
+        # alpha_derm_total = Ch * (A + (( 1 - Ch) * self.get_alpha_base(wl)))
+        alpha_derm_total = Ch*(gamma*alpha_oxy + (1-gamma)*alpha_deoxy) + (1-Ch)*self.get_alpha_base(wl)
+        return alpha_derm_total*self.scaleAlphaDerm
+
+    #scatter_coef is the scattering coefficient of epidermis and dermis layers
+    def get_scatter_coef(self,wl, layer):
+        scattering = 14.74*math.pow(wl,-0.22)+2.22*math.pow(10,11)*math.pow(wl,-4.0)
+        #scattering = 1.1*math.pow(10,12)*math.pow(wl,-4.0)+73.7*math.pow(wl,-0.22)
+        if layer == "dermis":
+            scattering = 0.5*scattering
+        return scattering*self.scaleScattering

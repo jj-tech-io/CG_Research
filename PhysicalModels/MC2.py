@@ -103,6 +103,27 @@ class Abs_Scat():
         if layer == "dermis":
             scattering = 0.5*scattering
         return scattering*self.scaleScattering
+class ColorConverter():
+    def __init__(self):
+        print("init ColorConverter()")
+        
+    def gamma_correction(self, C):
+            abs_C = abs(C)
+            if abs_C > 0.0031308:
+                return 1.055 * pow(abs_C,1/2.4) - 0.055
+            else:
+                return 12.92 * C
+    def XYZ_to_sRGB(self, xyz):
+        x = xyz[0]/10
+        y = xyz[1]/10
+        z = xyz[2]/10
+        mat3x3 = [(3.2406, -1.5372, -0.4986), (-0.9689,   1.8758,  0.0415), (0.0557, -0.204,  1.057)]
+        
+        r = self.gamma_correction(x * mat3x3[0][0] + y * mat3x3[0][1] + z * mat3x3[0][2])
+        g = self.gamma_correction(x * mat3x3[1][0] + y * mat3x3[1][1] + z * mat3x3[1][2])
+        b = self.gamma_correction(x * mat3x3[2][0] + y * mat3x3[2][1] + z * mat3x3[2][2])
+        sRGB = (int(r*255),int(g*255),int(b*255)) #needs to be 0 - 255 for outputing to color image
+        return sRGB    
 
 class SkinAbsorption:
 

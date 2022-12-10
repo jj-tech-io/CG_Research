@@ -522,12 +522,9 @@ if __name__ == "__main__":
     plt.ylabel("hemoglobin Chb",fontsize=8)
     plt.xlabel(f"""melanin Cm
         {title}""",fontsize=8)
-
     plt.tick_params(axis='both', which='major', labelsize=8)
-    #make figure bigger
-
-    #save fig
     plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image1_{date_time}.png",dpi=72, bbox_inches="tight")
+   
     plt.clf()
     im2 = Image.fromarray(im2)
     im2 = im2.resize((64,46), Image.Resampling.LANCZOS)
@@ -538,7 +535,6 @@ if __name__ == "__main__":
     plt.xlabel(f"""melanin Cm
         {title}""",fontsize=8)
     plt.tick_params(axis='both', which='major', labelsize=8)
-    #save fig
     plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image2_{date_time}.png",dpi=72,bbox_inches="tight")
 
     im3 = Image.fromarray(im3)
