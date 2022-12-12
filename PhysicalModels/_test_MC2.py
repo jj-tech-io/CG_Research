@@ -8,6 +8,7 @@ class _test_MC2(unittest.TestCase):
         print(mc.get_alpha_base(400))
         print(mc.get_alpha_em(400))
         print(mc.get_alpha_ph(400))
+    
 
 if __name__ == "__main__":
     _test_MC2()
