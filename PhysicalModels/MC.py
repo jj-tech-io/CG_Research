@@ -100,7 +100,9 @@ class SkinAbsorption:
     Hb = {}
     CIE_XYZ_Spectral_Sensitivity_Curve = {}
     step_sizes = []
-    
+    radial_x = []
+    radial_y = []
+    step_sizes = []
     def __init__(self):
         #load csv to dictionary
         import csv
@@ -286,7 +288,7 @@ class SkinAbsorption:
         ReflBin = [None] * Nbinsp1 #bin to store weights of escaped photos for reflectivity
         epi_albedo = epi_mus/(epi_mus + epi_mua) # albedo of tissue
         derm_albedo = derm_mus/(derm_mus + derm_mua) # albedo of tissue
-        Nphotons = 100 # number of photons in simulation 
+        Nphotons = 1000 # number of photons in simulation 
         NR = Nbins # number of radial positions 
         radial_size = 2.5 # maximum radial size 
         r = 0.0 # radial position 
@@ -343,7 +345,9 @@ class SkinAbsorption:
                 x = x + (s * ux)
                 y = y + (s * uy)
                 z = z + (s * uz)
-
+                self.radial_x.append(x)
+                self.radial_y.append(y)
+                self.step_sizes.append(s)
                 if uz < 0:
                     # calculate partial step to reach boundary surface
                     s1 = abs(z/uz)
@@ -494,7 +498,8 @@ if __name__ == "__main__":
     start = datetime.now()
     date_time = start.strftime("%m-%d-%Y_%H-%M-%S")
     date_time = date_time.replace(" ", "_").replace(":", "_").replace("/", "_")
-   
+    
+    
 
     start_time = date_time
     print("Starting"+str(start_time))
@@ -516,7 +521,7 @@ if __name__ == "__main__":
     im1 = im1.resize((64,46), Image.Resampling.LANCZOS)
     
     im1 = np.array(im1)
-    plt.imshow(im1,extent=[0,0.5,0.32,0])
+    #find Cm and Ch values for pixel closest to 
     plt.title(f"Monte Carlo LUT",fontsize=8)
     #put description below the image
     plt.ylabel("hemoglobin Chb",fontsize=8)
@@ -547,6 +552,22 @@ if __name__ == "__main__":
         {title}""",fontsize=8)
 
     #save fig
-    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image3_{date_time}.png",dpi=72)
+    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/image3_{date_time}.png",dpi=72,bbox_inches="tight")
 
 
+    #plot radial x,y 
+    plt.clf()
+    plt.scatter(skinAbsorption.radial_x, skinAbsorption.radial_y)
+    plt.title(f"Radial Distribution",fontsize=8)
+    plt.ylabel("y",fontsize=8)
+    plt.xlabel("x",fontsize=8)
+    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/radial_{date_time}.png",dpi=72)
+    #plot step sizes
+    import numpy as np
+    plt.clf()
+    x = np.linspace(0,1,len(skinAbsorption.step_sizes))
+    plt.hist(x,skinAbsorption.step_sizes)
+    plt.title(f"Step Size Hist",fontsize=8)
+    plt.ylabel("Bin Size",fontsize=8)
+    plt.xlabel("Step Size",fontsize=8)
+    plt.savefig(f"/Users/joeljohnson/Documents/Github/CG_Research/PhysicalModels/Plots/step_size_{date_time}.png",dpi=72)
